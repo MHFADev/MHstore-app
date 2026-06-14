@@ -13,12 +13,14 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.snackbar.Snackbar;
-import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.gson.JsonObject;
 import com.mhstore.admin.R;
 import com.mhstore.admin.models.Order;
+import com.mhstore.admin.network.SupabaseClient;
 import com.mhstore.admin.utils.Constants;
+import com.mhstore.admin.utils.Logger;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -26,10 +28,11 @@ import java.util.*;
  * Order detail view.
  * Shows full customer info, service details, status management,
  * admin notes, and quick WhatsApp contact button.
+ * Uses SupabaseClient REST API (no Firebase).
  */
 public class OrderDetailActivity extends AppCompatActivity {
 
-    private FirebaseFirestore db;
+    private SupabaseClient supabase;
     private String orderId;
     private Order  currentOrder;
 
@@ -52,11 +55,16 @@ public class OrderDetailActivity extends AppCompatActivity {
         "Pending", "Dikonfirmasi", "Sedang Dikerjakan", "Selesai", "Dibatalkan"
     };
 
+    private final SimpleDateFormat supabaseFormat =
+        new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
+    private final SimpleDateFormat displayFormat =
+        new SimpleDateFormat("dd MMM yyyy · HH:mm", new Locale("id", "ID"));
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_order_detail);
-        db = FirebaseFirestore.getInstance();
+        supabase = SupabaseClient.getInstance();
 
         orderId = getIntent().getStringExtra(Constants.EXTRA_ORDER_ID);
         if (orderId == null) { finish(); return; }
@@ -110,26 +118,34 @@ public class OrderDetailActivity extends AppCompatActivity {
 
     private void loadOrder() {
         showLoading(true);
-        db.collection(Constants.COLLECTION_ORDERS).document(orderId)
-            .get()
-            .addOnSuccessListener(doc -> {
+        supabase.getOrder(orderId, new SupabaseClient.Callback<JsonObject>() {
+            @Override
+            public void onSuccess(JsonObject result) {
                 showLoading(false);
-                if (!doc.exists()) { showSnackbar("Pesanan tidak ditemukan"); finish(); return; }
                 try {
-                    currentOrder = doc.toObject(Order.class);
+                    currentOrder = Order.fromJson(result);
                     if (currentOrder != null) {
-                        if (currentOrder.getOrderId() == null) currentOrder.setOrderId(doc.getId());
+                        if (currentOrder.getOrderId() == null) currentOrder.setOrderId(orderId);
                         populateUI();
                         // Mark as read
                         if (!currentOrder.isRead()) {
-                            doc.getReference().update(Constants.FIELD_IS_READ, true);
+                            supabase.updateOrder(orderId, null, null, true, new SupabaseClient.Callback<Void>() {
+                                @Override public void onSuccess(Void r) {}
+                                @Override public void onError(String e) { Logger.w("OrderDetail", "Mark read failed: " + e); }
+                            });
                         }
                     }
                 } catch (Exception e) {
                     showSnackbar("Error: " + e.getMessage());
                 }
-            })
-            .addOnFailureListener(e -> { showLoading(false); showSnackbar("Gagal memuat: " + e.getMessage()); });
+            }
+
+            @Override
+            public void onError(String error) {
+                showLoading(false);
+                showSnackbar("Gagal memuat: " + error);
+            }
+        });
     }
 
     private void populateUI() {
@@ -139,11 +155,18 @@ public class OrderDetailActivity extends AppCompatActivity {
         tvServiceBadge.setText(currentOrder.getServiceLabel());
         setServiceBadgeColor();
 
-        // Timestamp
-        Timestamp ts = currentOrder.getCreatedAt();
-        if (ts != null) {
-            SimpleDateFormat sdf = new SimpleDateFormat("dd MMM yyyy · HH:mm", new Locale("id","ID"));
-            tvCreatedAt.setText(sdf.format(ts.toDate()));
+        // Timestamp — parse ISO date string from Supabase
+        String dateStr = currentOrder.getCreatedAt();
+        if (dateStr != null && !dateStr.isEmpty()) {
+            try {
+                String truncated = dateStr;
+                int dotIdx = dateStr.indexOf('.');
+                if (dotIdx > 0) truncated = dateStr.substring(0, dotIdx);
+                Date date = supabaseFormat.parse(truncated);
+                if (date != null) tvCreatedAt.setText(displayFormat.format(date));
+            } catch (ParseException e) {
+                tvCreatedAt.setText(dateStr);
+            }
         }
 
         // Status
@@ -242,16 +265,12 @@ public class OrderDetailActivity extends AppCompatActivity {
         String newStatus = STATUS_VALUES[pos];
         String notes     = etAdminNotes.getText().toString().trim();
 
-        Map<String, Object> updates = new HashMap<>();
-        updates.put(Constants.FIELD_STATUS,      newStatus);
-        updates.put(Constants.FIELD_ADMIN_NOTES, notes);
-
         btnSave.setEnabled(false);
         btnSave.setText("Menyimpan...");
 
-        db.collection(Constants.COLLECTION_ORDERS).document(orderId)
-            .update(updates)
-            .addOnSuccessListener(unused -> {
+        supabase.updateOrder(orderId, newStatus, notes, currentOrder.isRead(), new SupabaseClient.Callback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
                 currentOrder.setStatus(newStatus);
                 currentOrder.setAdminNotes(notes);
                 tvStatusLabel.setText(currentOrder.getStatusLabel());
@@ -259,12 +278,15 @@ public class OrderDetailActivity extends AppCompatActivity {
                 showSnackbar("✓ Status diperbarui: " + STATUS_LABELS[pos]);
                 btnSave.setEnabled(true);
                 btnSave.setText("Simpan Perubahan");
-            })
-            .addOnFailureListener(e -> {
-                showSnackbar("Gagal menyimpan: " + e.getMessage());
+            }
+
+            @Override
+            public void onError(String error) {
+                showSnackbar("Gagal menyimpan: " + error);
                 btnSave.setEnabled(true);
                 btnSave.setText("Simpan Perubahan");
-            });
+            }
+        });
     }
 
     private void openWhatsApp() {

@@ -17,8 +17,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.google.android.material.button.MaterialButton;
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.mhstore.admin.MHStoreApp;
 import com.mhstore.admin.R;
 import com.mhstore.admin.utils.Constants;
 import com.mhstore.admin.utils.PrefManager;
@@ -218,15 +216,12 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * FCM topic subscription is handled server-side.
+     * No Firebase SDK dependency needed in the app.
+     */
     private void subscribeToAdminTopic() {
-        FirebaseMessaging.getInstance().subscribeToTopic(MHStoreApp.FCM_TOPIC)
-            .addOnCompleteListener(task -> {
-                if (!task.isSuccessful()) {
-                    android.util.Log.w("MHStore", "FCM topic subscription failed: " + task.getException());
-                } else {
-                    android.util.Log.d("MHStore", "FCM topic subscribed: " + MHStoreApp.FCM_TOPIC);
-                }
-            });
+        // No-op: FCM topic subscription managed via Supabase + server-side logic
     }
 
     @Override

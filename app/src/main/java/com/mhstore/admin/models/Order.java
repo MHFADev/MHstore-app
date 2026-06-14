@@ -1,11 +1,14 @@
 package com.mhstore.admin.models;
 
-import com.google.firebase.Timestamp;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Order model mapping to Firestore document structure
+ * Order model — maps to Supabase 'orders' table via REST API.
+ * Replaces the former Firestore mapping (no Firebase dependency).
  */
 public class Order {
 
@@ -23,76 +26,71 @@ public class Order {
     private String   orderId;
     private String   service;
     private String   status;
-    private Timestamp createdAt;
+    private String   createdAt;          // ISO 8601 date string from Supabase
     private Map<String, Object> customer;
     private Map<String, Object> details;
     private String   adminNotes;
     private boolean  isRead;
 
-    // Required empty constructor for Firestore
+    // Required empty constructor
     public Order() {}
 
-    public Order(String orderId, String service, String status,
-                 Timestamp createdAt, Map<String, Object> customer,
-                 Map<String, Object> details) {
-        this.orderId   = orderId;
-        this.service   = service;
-        this.status    = status;
-        this.createdAt = createdAt;
-        this.customer  = customer;
-        this.details   = details;
-        this.adminNotes = "";
-        this.isRead    = false;
-    }
-
     // ── Getters ─────────────────────────────────────────────────
-    public String    getOrderId()    { return orderId; }
-    public String    getService()    { return service; }
-    public String    getStatus()     { return status; }
-    public Timestamp getCreatedAt()  { return createdAt; }
+    public String    getOrderId()         { return orderId; }
+    public String    getService()         { return service; }
+    public String    getStatus()          { return status; }
+    public String    getCreatedAt()       { return createdAt; }
     public Map<String, Object> getCustomer() { return customer; }
     public Map<String, Object> getDetails()  { return details; }
-    public String    getAdminNotes() { return adminNotes != null ? adminNotes : ""; }
-    public boolean   isRead()        { return isRead; }
+    public String    getAdminNotes()      { return adminNotes != null ? adminNotes : ""; }
+    public boolean   isRead()             { return isRead; }
 
     // ── Setters ─────────────────────────────────────────────────
-    public void setOrderId(String orderId)       { this.orderId = orderId; }
-    public void setService(String service)       { this.service = service; }
-    public void setStatus(String status)         { this.status = status; }
-    public void setCreatedAt(Timestamp createdAt){ this.createdAt = createdAt; }
+    public void setOrderId(String orderId)           { this.orderId = orderId; }
+    public void setService(String service)           { this.service = service; }
+    public void setStatus(String status)             { this.status = status; }
+    public void setCreatedAt(String createdAt)       { this.createdAt = createdAt; }
     public void setCustomer(Map<String, Object> customer) { this.customer = customer; }
     public void setDetails(Map<String, Object> details)   { this.details = details; }
-    public void setAdminNotes(String adminNotes) { this.adminNotes = adminNotes; }
-    public void setRead(boolean read)            { this.isRead = read; }
+    public void setAdminNotes(String adminNotes)     { this.adminNotes = adminNotes; }
+    public void setRead(boolean read)                { this.isRead = read; }
 
     // ── Helpers ─────────────────────────────────────────────────
     public String getCustomerName() {
-        if (customer == null) return "Unknown";
-        Object name = customer.get("name");
-        return name != null ? String.valueOf(name) : "Unknown";
+        if (customer != null) {
+            Object name = customer.get("name");
+            if (name != null) return String.valueOf(name);
+        }
+        return "Unknown";
     }
 
     public String getCustomerWhatsApp() {
-        if (customer == null) return "";
-        Object wa = customer.get("whatsapp");
-        return wa != null ? String.valueOf(wa) : "";
+        if (customer != null) {
+            Object wa = customer.get("whatsapp");
+            if (wa != null) return String.valueOf(wa);
+        }
+        return "";
     }
 
     public String getCustomerEmail() {
-        if (customer == null) return "";
-        Object email = customer.get("email");
-        return email != null ? String.valueOf(email) : "";
+        if (customer != null) {
+            Object email = customer.get("email");
+            if (email != null) return String.valueOf(email);
+        }
+        return "";
     }
 
     public String getCustomerCity() {
-        if (customer == null) return "";
-        Object city = customer.get("city");
-        return city != null ? String.valueOf(city) : "";
+        if (customer != null) {
+            Object city = customer.get("city");
+            if (city != null) return String.valueOf(city);
+        }
+        return "";
     }
 
     public String getServiceLabel() {
-        if (SVC_PROFESSIONAL.equals(service)) return "💻 Website Professional";
-        if (SVC_HOTSPOT.equals(service))      return "📡 Website Hotspot";
+        if (SVC_PROFESSIONAL.equals(service)) return "\uD83D\uDCBB Website Professional";
+        if (SVC_HOTSPOT.equals(service))      return "\uD83D\uDCE1 Website Hotspot";
         return service != null ? service : "Unknown";
     }
 
@@ -111,5 +109,49 @@ public class Order {
         if (details == null) return "—";
         Object val = details.get(key);
         return val != null ? String.valueOf(val) : "—";
+    }
+
+    // ── Supabase JSON → Order ──────────────────────────────────
+    @SuppressWarnings("unchecked")
+    public static Order fromJson(JsonObject json) {
+        Order o = new Order();
+        o.orderId    = jsonStr(json, "id");
+        o.service    = jsonStr(json, "service");
+        o.status     = jsonStr(json, "status");
+        o.createdAt  = jsonStr(json, "created_at");
+        o.adminNotes = jsonStr(json, "admin_notes");
+        o.isRead     = json.has("is_read") && !json.get("is_read").isJsonNull()
+                       && json.get("is_read").getAsBoolean();
+
+        // Build customer map from flat Supabase fields
+        Map<String, Object> customer = new HashMap<>();
+        putIfNotNull(customer, "name",      jsonStr(json, "customer_name"));
+        putIfNotNull(customer, "whatsapp",  jsonStr(json, "customer_whatsapp"));
+        putIfNotNull(customer, "email",     jsonStr(json, "customer_email"));
+        putIfNotNull(customer, "city",      jsonStr(json, "customer_city"));
+        putIfNotNull(customer, "business",  jsonStr(json, "customer_business"));
+        o.customer = customer;
+
+        // Parse details JSONB
+        if (json.has("details") && !json.get("details").isJsonNull()) {
+            try {
+                o.details = new Gson().fromJson(json.get("details"), Map.class);
+            } catch (Exception e) {
+                o.details = new HashMap<>();
+            }
+        } else {
+            o.details = new HashMap<>();
+        }
+
+        return o;
+    }
+
+    private static void putIfNotNull(Map<String, Object> map, String key, String value) {
+        if (value != null && !value.isEmpty()) map.put(key, value);
+    }
+
+    private static String jsonStr(JsonObject o, String key) {
+        if (!o.has(key) || o.get(key).isJsonNull()) return null;
+        return o.get(key).getAsString();
     }
 }

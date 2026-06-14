@@ -15,13 +15,13 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.ListenerRegistration;
-import com.google.firebase.firestore.Query;
+import com.google.gson.JsonObject;
 import com.mhstore.admin.R;
 import com.mhstore.admin.adapters.OrderAdapter;
 import com.mhstore.admin.models.Order;
+import com.mhstore.admin.network.SupabaseClient;
 import com.mhstore.admin.utils.Constants;
+import com.mhstore.admin.utils.Logger;
 import com.mhstore.admin.utils.PrefManager;
 
 import java.util.ArrayList;
@@ -29,7 +29,8 @@ import java.util.List;
 
 /**
  * Main admin dashboard.
- * Shows real-time order list with tab filters and stats cards.
+ * Shows order list with tab filters and stats cards.
+ * Uses SupabaseClient REST API + Realtime WebSocket.
  */
 public class MainActivity extends AppCompatActivity implements OrderAdapter.OnOrderClickListener {
 
@@ -44,8 +45,7 @@ public class MainActivity extends AppCompatActivity implements OrderAdapter.OnOr
     // Stats TextViews
     private TextView tvTotal, tvPending, tvProgress, tvDone;
 
-    private FirebaseFirestore db;
-    private ListenerRegistration ordersListener;
+    private SupabaseClient supabase;
     private int currentTab = Constants.TAB_ALL;
 
     @Override
@@ -53,14 +53,15 @@ public class MainActivity extends AppCompatActivity implements OrderAdapter.OnOr
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        db = FirebaseFirestore.getInstance();
+        supabase = SupabaseClient.getInstance();
 
         setupToolbar();
         setupStats();
         setupTabs();
         setupRecyclerView();
         setupSwipeRefresh();
-        startRealtimeListener();
+        loadOrders();
+        connectRealtime();
 
         // Handle notification deep link
         String notifOrderId = getIntent().getStringExtra(Constants.EXTRA_ORDER_ID);
@@ -116,39 +117,92 @@ public class MainActivity extends AppCompatActivity implements OrderAdapter.OnOr
         swipeRefresh.setColorSchemeResources(R.color.primary, R.color.secondary);
         swipeRefresh.setProgressBackgroundColorSchemeResource(R.color.bg_surface);
         swipeRefresh.setOnRefreshListener(() -> {
-            startRealtimeListener();
+            loadOrders();
             swipeRefresh.setRefreshing(false);
         });
     }
 
-    private void startRealtimeListener() {
-        if (ordersListener != null) ordersListener.remove();
+    // ── Data Loading (Supabase REST) ───────────────────────────
+    private void loadOrders() {
+        if (!supabase.isConfigured()) return;
 
-        ordersListener = db.collection(Constants.COLLECTION_ORDERS)
-            .orderBy(Constants.FIELD_CREATED_AT, Query.Direction.DESCENDING)
-            .limit(Constants.MAX_ORDERS_PER_LOAD)
-            .addSnapshotListener((snapshots, error) -> {
-                if (error != null) {
-                    showSnackbar("Gagal memuat data: " + error.getMessage());
-                    return;
-                }
-                if (snapshots == null) return;
-
+        supabase.getOrders(Constants.MAX_ORDERS_PER_LOAD, new SupabaseClient.Callback<List<JsonObject>>() {
+            @Override
+            public void onSuccess(List<JsonObject> result) {
                 allOrders.clear();
-                for (var doc : snapshots.getDocuments()) {
+                for (JsonObject json : result) {
                     try {
-                        Order order = doc.toObject(Order.class);
-                        if (order != null) {
-                            if (order.getOrderId() == null) order.setOrderId(doc.getId());
-                            allOrders.add(order);
-                        }
+                        Order order = Order.fromJson(json);
+                        if (order != null) allOrders.add(order);
                     } catch (Exception e) {
-                        android.util.Log.w("MHStore", "Parse error for doc " + doc.getId(), e);
+                        Logger.e("MainActivity", "Parse error: " + e.getMessage());
                     }
                 }
                 updateStats();
                 filterAndShow();
-            });
+            }
+
+            @Override
+            public void onError(String error) {
+                showSnackbar("Gagal memuat data: " + error);
+            }
+        });
+    }
+
+    // ── Realtime WebSocket ──────────────────────────────────────
+    private void connectRealtime() {
+        if (!supabase.isConfigured()) return;
+
+        supabase.connectRealtime(new SupabaseClient.RealtimeCallback() {
+            @Override
+            public void onOrderInserted(JsonObject record) {
+                runOnUiThread(() -> {
+                    try {
+                        Order order = Order.fromJson(record);
+                        if (order != null) {
+                            allOrders.add(0, order);
+                            updateStats();
+                            filterAndShow();
+                        }
+                    } catch (Exception e) {
+                        Logger.e("MainActivity", "Realtime parse error: " + e.getMessage());
+                    }
+                });
+            }
+
+            @Override
+            public void onOrderUpdated(JsonObject record) {
+                runOnUiThread(() -> {
+                    try {
+                        Order updated = Order.fromJson(record);
+                        if (updated != null) {
+                            // Replace existing order in list
+                            for (int i = 0; i < allOrders.size(); i++) {
+                                if (updated.getOrderId() != null
+                                        && updated.getOrderId().equals(allOrders.get(i).getOrderId())) {
+                                    allOrders.set(i, updated);
+                                    break;
+                                }
+                            }
+                            updateStats();
+                            filterAndShow();
+                        }
+                    } catch (Exception e) {
+                        Logger.e("MainActivity", "Realtime update parse error: " + e.getMessage());
+                    }
+                });
+            }
+
+            @Override
+            public void onConnected() {
+                Logger.i("MainActivity", "Realtime connected");
+            }
+
+            @Override
+            public void onDisconnected() {
+                Logger.w("MainActivity", "Realtime disconnected");
+            }
+        });
     }
 
     private void filterAndShow() {
@@ -239,7 +293,7 @@ public class MainActivity extends AppCompatActivity implements OrderAdapter.OnOr
                 .setTitle("Logout")
                 .setMessage("Keluar dari dashboard admin?")
                 .setPositiveButton("Logout", (d, w) -> {
-                    if (ordersListener != null) ordersListener.remove();
+                    supabase.disconnectRealtime();
                     startActivity(new Intent(this, LoginActivity.class));
                     finishAffinity();
                 })
@@ -259,7 +313,7 @@ public class MainActivity extends AppCompatActivity implements OrderAdapter.OnOr
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (ordersListener != null) ordersListener.remove();
+        supabase.disconnectRealtime();
     }
 
     @Override

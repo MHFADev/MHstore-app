@@ -53,5 +53,8 @@ public final class Constants {
     public static final int MAX_ORDERS_PER_LOAD = 50;
 
     // ── Permissions ───────────────────────────────────────────
-    public static final int REQ_NOTIFICATION_PERM = 1001;
+    public static final int REQUEST_NOTIFICATION_PERM = 1001;
+
+    // ── Timing ─────────────────────────────────────────────────
+    public static final long SPLASH_DELAY_MS = 1500L;
 }

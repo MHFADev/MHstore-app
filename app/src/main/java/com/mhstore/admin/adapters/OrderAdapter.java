@@ -8,11 +8,12 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-import com.google.firebase.Timestamp;
 import com.mhstore.admin.R;
 import com.mhstore.admin.models.Order;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -29,7 +30,9 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
 
     private final List<Order> orders;
     private final OnOrderClickListener listener;
-    private final SimpleDateFormat sdf =
+    private final SimpleDateFormat supabaseFormat =
+        new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
+    private final SimpleDateFormat displayFormat =
         new SimpleDateFormat("dd MMM · HH:mm", new Locale("id", "ID"));
 
     public OrderAdapter(List<Order> orders, OnOrderClickListener listener) {
@@ -77,9 +80,9 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
             tvCustName.setText(order.getCustomerName());
             tvService.setText(order.getServiceLabel());
 
-            // Time
-            Timestamp ts = order.getCreatedAt();
-            tvTime.setText(ts != null ? sdf.format(ts.toDate()) : "—");
+            // Time — parse ISO date string from Supabase
+            String dateStr = order.getCreatedAt();
+            tvTime.setText(formatDate(dateStr));
 
             // Status badge
             tvStatus.setText(order.getStatusLabel());
@@ -126,6 +129,20 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
                 case Order.STATUS_CANCELLED: return R.drawable.bg_status_cancelled;
                 default:                     return R.drawable.bg_status_pending;
             }
+        }
+    }
+
+    private String formatDate(String isoDate) {
+        if (isoDate == null || isoDate.isEmpty()) return "—";
+        try {
+            // Truncate milliseconds/timezone if present
+            String truncated = isoDate;
+            int dotIdx = isoDate.indexOf('.');
+            if (dotIdx > 0) truncated = isoDate.substring(0, dotIdx);
+            Date date = supabaseFormat.parse(truncated);
+            return date != null ? displayFormat.format(date) : "—";
+        } catch (ParseException e) {
+            return isoDate;
         }
     }
 }

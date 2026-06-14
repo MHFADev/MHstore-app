@@ -42,3 +42,6 @@ Thumbs.db
 
 # Google Services (contains secrets)
 google-services.json
+
+# Qoder IDE
+.qoder/
