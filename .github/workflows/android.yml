@@ -29,11 +29,32 @@ jobs:
       - name: Generate Gradle Wrapper
         run: gradle wrapper
 
+      - name: Create local.properties
+        run: |
+          cat > local.properties << 'EOF'
+          sdk.dir=$ANDROID_SDK_ROOT
+          supabase.url=https://inpcjuxjvatxfzxifzsk.supabase.co
+          supabase.anon.key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlucGNqdXhqdmF0eGZ6eGlmenNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMDIxMDYsImV4cCI6MjA5Njg3ODEwNn0.gezBDHPRN2grTxcwhPYefRLQN9nn3yvIzzbjHJ2Krjg
+          EOF
+
+      - name: Generate Debug Keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore app/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MHStoreAdmin-Debug
+          name: MHStoreAdmin-Debug-v2.0.0
           path: app/build/outputs/apk/debug/*.apk
+          retention-days: 30
