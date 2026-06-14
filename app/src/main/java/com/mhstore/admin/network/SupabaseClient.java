@@ -153,6 +153,32 @@ public class SupabaseClient {
         });
     }
 
+    // ── REST: UPDATE Order with arbitrary fields ───────────────
+    public void updateOrderFields(String orderId, java.util.Map<String, Object> fields,
+                                   Callback<Void> callback) {
+        executor.execute(() -> {
+            String url = baseUrl + "/rest/v1/orders?id=eq." + orderId;
+            JsonObject patch = new JsonObject();
+            for (java.util.Map.Entry<String, Object> entry : fields.entrySet()) {
+                Object val = entry.getValue();
+                if (val == null) continue;
+                if (val instanceof String)     patch.addProperty(entry.getKey(), (String) val);
+                else if (val instanceof Number) patch.addProperty(entry.getKey(), (Number) val);
+                else if (val instanceof Boolean) patch.addProperty(entry.getKey(), (Boolean) val);
+                else patch.addProperty(entry.getKey(), String.valueOf(val));
+            }
+
+            RequestBody body = RequestBody.create(
+                gson.toJson(patch), MediaType.parse("application/json"));
+            Request req = new Request.Builder().url(url)
+                .patch(body).build();
+            executeRequest(req, new Callback<Void>() {
+                @Override public void onSuccess(Void r) { callback.onSuccess(null); }
+                @Override public void onError(String e) { callback.onError(e); }
+            }, b -> null);
+        });
+    }
+
     // ── REST: Send Admin Message ──────────────────────────────────
     public void sendAdminMessage(String orderId, String message, Callback<Void> callback) {
         executor.execute(() -> {

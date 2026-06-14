@@ -13,6 +13,7 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.JsonObject;
 import com.mhstore.admin.R;
 import com.mhstore.admin.models.Order;
@@ -38,7 +39,7 @@ public class OrderDetailActivity extends AppCompatActivity {
 
     // Views
     private TextView  tvOrderId, tvServiceBadge, tvCreatedAt, tvStatusLabel;
-    private TextView  tvCustName, tvCustEmail, tvCustWa, tvCustCity, tvCustBiz;
+    private TextInputEditText etCustName, etCustEmail, etCustWa, etCustCity, etCustBiz;
     private LinearLayout detailsContainer;
     private Spinner  spinStatus;
     private EditText etAdminNotes;
@@ -91,11 +92,11 @@ public class OrderDetailActivity extends AppCompatActivity {
         tvServiceBadge   = findViewById(R.id.tv_service_badge);
         tvCreatedAt      = findViewById(R.id.tv_created_at);
         tvStatusLabel    = findViewById(R.id.tv_status_label);
-        tvCustName       = findViewById(R.id.tv_cust_name);
-        tvCustEmail      = findViewById(R.id.tv_cust_email);
-        tvCustWa         = findViewById(R.id.tv_cust_wa);
-        tvCustCity       = findViewById(R.id.tv_cust_city);
-        tvCustBiz        = findViewById(R.id.tv_cust_biz);
+        etCustName       = findViewById(R.id.et_cust_name);
+        etCustEmail      = findViewById(R.id.et_cust_email);
+        etCustWa         = findViewById(R.id.et_cust_wa);
+        etCustCity       = findViewById(R.id.et_cust_city);
+        etCustBiz        = findViewById(R.id.et_cust_biz);
         detailsContainer = findViewById(R.id.details_container);
         spinStatus       = findViewById(R.id.spin_status);
         etAdminNotes     = findViewById(R.id.et_admin_notes);
@@ -180,14 +181,15 @@ public class OrderDetailActivity extends AppCompatActivity {
         spinStatus.setSelection(spinPos);
 
         // Customer
-        tvCustName.setText(currentOrder.getCustomerName());
-        tvCustEmail.setText(nvl(currentOrder.getCustomerEmail(), "—"));
-        tvCustWa.setText(nvl(currentOrder.getCustomerWhatsApp(), "—"));
-        tvCustCity.setText(nvl(currentOrder.getCustomerCity(), "—"));
+        etCustName.setText(nvl(currentOrder.getCustomerName(), ""));
+        etCustEmail.setText(nvl(currentOrder.getCustomerEmail(), ""));
+        etCustWa.setText(nvl(currentOrder.getCustomerWhatsApp(), ""));
+        etCustCity.setText(nvl(currentOrder.getCustomerCity(), ""));
 
         Map<String, Object> cust = currentOrder.getCustomer();
-        String biz = cust != null ? nvl(String.valueOf(cust.getOrDefault("business", "")), "—") : "—";
-        tvCustBiz.setText(biz);
+        String biz = cust != null ? nvl(String.valueOf(cust.getOrDefault("business", "")), "") : "";
+        if ("null".equals(biz)) biz = "";
+        etCustBiz.setText(biz);
 
         // Admin notes
         etAdminNotes.setText(currentOrder.getAdminNotes());
@@ -264,18 +266,33 @@ public class OrderDetailActivity extends AppCompatActivity {
         int pos    = spinStatus.getSelectedItemPosition();
         String newStatus = STATUS_VALUES[pos];
         String notes     = etAdminNotes.getText().toString().trim();
+        String custName  = etCustName.getText().toString().trim();
+        String custEmail = etCustEmail.getText().toString().trim();
+        String custWa    = etCustWa.getText().toString().trim();
+        String custCity  = etCustCity.getText().toString().trim();
+        String custBiz   = etCustBiz.getText().toString().trim();
 
         btnSave.setEnabled(false);
         btnSave.setText("Menyimpan...");
 
-        supabase.updateOrder(orderId, newStatus, notes, currentOrder.isRead(), new SupabaseClient.Callback<Void>() {
+        // Build fields map for Supabase update (flat columns)
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("status", newStatus);
+        fields.put("admin_notes", notes);
+        fields.put("customer_name", custName);
+        fields.put("customer_email", custEmail);
+        fields.put("customer_whatsapp", custWa);
+        fields.put("customer_city", custCity);
+        fields.put("customer_business", custBiz);
+
+        supabase.updateOrderFields(orderId, fields, new SupabaseClient.Callback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 currentOrder.setStatus(newStatus);
                 currentOrder.setAdminNotes(notes);
                 tvStatusLabel.setText(currentOrder.getStatusLabel());
                 setStatusColor(tvStatusLabel, newStatus);
-                showSnackbar("✓ Status diperbarui: " + STATUS_LABELS[pos]);
+                showSnackbar("✓ Perubahan disimpan");
                 btnSave.setEnabled(true);
                 btnSave.setText("Simpan Perubahan");
             }
@@ -290,12 +307,12 @@ public class OrderDetailActivity extends AppCompatActivity {
     }
 
     private void openWhatsApp() {
-        String wa = currentOrder != null ? currentOrder.getCustomerWhatsApp() : "";
-        if (wa == null || wa.isEmpty()) { showSnackbar("No. WA tidak tersedia"); return; }
+        String wa = etCustWa.getText() != null ? etCustWa.getText().toString().trim() : "";
+        if (wa.isEmpty()) { showSnackbar("No. WA tidak tersedia"); return; }
         if (wa.startsWith("0")) wa = "62" + wa.substring(1);
         String clean = wa.replaceAll("[^0-9]", "");
-        String name  = currentOrder.getCustomerName();
-        String ordId = currentOrder.getOrderId();
+        String name  = etCustName.getText() != null ? etCustName.getText().toString().trim() : "Admin";
+        String ordId = currentOrder != null ? currentOrder.getOrderId() : "";
         String msg   = Uri.encode("Halo " + name + "! Ini dari tim MHStore mengenai pesanan #" + ordId + ". ");
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/" + clean + "?text=" + msg)));
@@ -305,8 +322,8 @@ public class OrderDetailActivity extends AppCompatActivity {
     }
 
     private void copyPhone() {
-        String wa = currentOrder != null ? currentOrder.getCustomerWhatsApp() : "";
-        if (wa == null || wa.isEmpty()) { showSnackbar("No. WA tidak tersedia"); return; }
+        String wa = etCustWa.getText() != null ? etCustWa.getText().toString().trim() : "";
+        if (wa.isEmpty()) { showSnackbar("No. WA tidak tersedia"); return; }
         android.content.ClipboardManager clip = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
         if (clip != null) {
             clip.setPrimaryClip(android.content.ClipData.newPlainText("WA", wa));

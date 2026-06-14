@@ -69,29 +69,28 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="👤 Data Pelanggan" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/text_primary" android:layout_marginBottom="12dp"/>
 
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-                        <TextView android:layout_width="100dp" android:layout_height="wrap_content" android:text="Nama" android:textSize="12sp" android:textColor="@color/text_secondary"/>
-                        <TextView android:id="@+id/tv_cust_name" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textSize="13sp" android:textStyle="bold" android:textColor="@color/text_primary" android:text="—"/>
-                    </LinearLayout>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-                        <TextView android:layout_width="100dp" android:layout_height="wrap_content" android:text="Email" android:textSize="12sp" android:textColor="@color/text_secondary"/>
-                        <TextView android:id="@+id/tv_cust_email" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textSize="13sp" android:textColor="@color/text_primary" android:text="—"/>
-                    </LinearLayout>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-                        <TextView android:layout_width="100dp" android:layout_height="wrap_content" android:text="WhatsApp" android:textSize="12sp" android:textColor="@color/text_secondary"/>
-                        <TextView android:id="@+id/tv_cust_wa" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textSize="13sp" android:textColor="@color/primary_light" android:text="—"/>
-                    </LinearLayout>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-                        <TextView android:layout_width="100dp" android:layout_height="wrap_content" android:text="Kota" android:textSize="12sp" android:textColor="@color/text_secondary"/>
-                        <TextView android:id="@+id/tv_cust_city" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textSize="13sp" android:textColor="@color/text_primary" android:text="—"/>
-                    </LinearLayout>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                        <TextView android:layout_width="100dp" android:layout_height="wrap_content" android:text="Bisnis" android:textSize="12sp" android:textColor="@color/text_secondary"/>
-                        <TextView android:id="@+id/tv_cust_biz" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textSize="13sp" android:textColor="@color/text_primary" android:text="—"/>
-                    </LinearLayout>
+                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" app:boxBackgroundColor="@color/bg_raised" app:boxCornerRadiusTopStart="8dp" app:boxCornerRadiusTopEnd="8dp" app:boxCornerRadiusBottomStart="8dp" app:boxCornerRadiusBottomEnd="8dp">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/et_cust_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Nama" android:textSize="13sp" android:textColor="@color/text_primary" android:inputType="textPersonName"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" app:boxBackgroundColor="@color/bg_raised" app:boxCornerRadiusTopStart="8dp" app:boxCornerRadiusTopEnd="8dp" app:boxCornerRadiusBottomStart="8dp" app:boxCornerRadiusBottomEnd="8dp">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/et_cust_email" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Email" android:textSize="13sp" android:textColor="@color/text_primary" android:inputType="textEmailAddress"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" app:boxBackgroundColor="@color/bg_raised" app:boxCornerRadiusTopStart="8dp" app:boxCornerRadiusTopEnd="8dp" app:boxCornerRadiusBottomStart="8dp" app:boxCornerRadiusBottomEnd="8dp">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/et_cust_wa" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="WhatsApp" android:textSize="13sp" android:textColor="@color/primary_light" android:inputType="phone"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" app:boxBackgroundColor="@color/bg_raised" app:boxCornerRadiusTopStart="8dp" app:boxCornerRadiusTopEnd="8dp" app:boxCornerRadiusBottomStart="8dp" app:boxCornerRadiusBottomEnd="8dp">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/et_cust_city" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Kota" android:textSize="13sp" android:textColor="@color/text_primary" android:inputType="text"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" app:boxBackgroundColor="@color/bg_raised" app:boxCornerRadiusTopStart="8dp" app:boxCornerRadiusTopEnd="8dp" app:boxCornerRadiusBottomStart="8dp" app:boxCornerRadiusBottomEnd="8dp">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/et_cust_biz" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Bisnis" android:textSize="13sp" android:textColor="@color/text_primary" android:inputType="text"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
                     <!-- Action Buttons -->
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="16dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_wa_contact"
                             android:layout_width="0dp" android:layout_weight="1"

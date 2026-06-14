@@ -12,11 +12,9 @@ import android.os.IBinder;
 import android.os.Looper;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mhstore.admin.MHStoreApp;
 import com.mhstore.admin.R;
-import com.mhstore.admin.activities.MainActivity;
 import com.mhstore.admin.activities.OrderDetailActivity;
 import com.mhstore.admin.database.AppDatabase;
 import com.mhstore.admin.database.OrderEntity;
@@ -31,14 +29,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Foreground Service — polls Supabase every 30 seconds when app is open.
- * Detects new orders, saves to Room, shows notification.
+ * Foreground Service — monitors orders in real-time via Supabase WebSocket
+ * and polls every 30 seconds as fallback.
  *
- * Lifecycle:
- *   startForegroundService() → onCreate() → onStartCommand() → polls every 30s
- *   onDestroy() → cancel polling
- *
- * Works alongside WorkManager (which polls every 15 min when app is closed).
+ * Notification flow (no Firebase):
+ *   1. Supabase Realtime WebSocket → instant INSERT/UPDATE detection
+ *   2. REST polling every 30s → fallback sync
+ *   3. WorkManager (15 min) → when app is fully closed
  */
 public class OrderPollingService extends Service {
 
@@ -67,12 +64,14 @@ public class OrderPollingService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        connectRealtime();
         startPolling();
-        return START_STICKY; // restart if killed by system
+        return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
+        supabase.disconnectRealtime();
         stopPolling();
         Logger.i(TAG, "OrderPollingService destroyed");
         super.onDestroy();
@@ -82,12 +81,62 @@ public class OrderPollingService extends Service {
     @Override
     public IBinder onBind(Intent intent) { return null; }
 
-    // ── Polling ───────────────────────────────────────────────
+    // ── Supabase Realtime WebSocket ────────────────────────────
+    private void connectRealtime() {
+        if (!supabase.isConfigured()) return;
+
+        supabase.connectRealtime(new SupabaseClient.RealtimeCallback() {
+            @Override
+            public void onOrderInserted(JsonObject record) {
+                // New order — show notification immediately
+                mainHandler.post(() -> {
+                    Logger.i(TAG, "Realtime: new order detected");
+                    try {
+                        OrderEntity entity = jsonToEntity(record);
+                        db.orderDao().insert(entity);
+                        if (!entity.isNotified) {
+                            showOrderNotification(entity);
+                            db.orderDao().markAsNotified(entity.id);
+                            PrefManager.getInstance(OrderPollingService.this).incrementBadge();
+                        }
+                    } catch (Exception e) {
+                        Logger.e(TAG, "Realtime insert parse error: " + e.getMessage());
+                    }
+                });
+            }
+
+            @Override
+            public void onOrderUpdated(JsonObject record) {
+                // Order status changed — update local DB
+                mainHandler.post(() -> {
+                    try {
+                        OrderEntity entity = jsonToEntity(record);
+                        db.orderDao().insert(entity); // upsert
+                        Logger.i(TAG, "Realtime: order updated " + entity.id);
+                    } catch (Exception e) {
+                        Logger.e(TAG, "Realtime update parse error: " + e.getMessage());
+                    }
+                });
+            }
+
+            @Override
+            public void onConnected() {
+                Logger.i(TAG, "Realtime WebSocket connected — instant notifications active");
+            }
+
+            @Override
+            public void onDisconnected() {
+                Logger.w(TAG, "Realtime WebSocket disconnected — falling back to polling");
+            }
+        });
+    }
+
+    // ── Polling (fallback) ────────────────────────────────────
     private void startPolling() {
         if (scheduler != null && !scheduler.isShutdown()) return;
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(this::poll, 0, POLL_INTERVAL, TimeUnit.SECONDS);
-        Logger.i(TAG, "Polling started — every " + POLL_INTERVAL + "s");
+        Logger.i(TAG, "Polling started — every " + POLL_INTERVAL + "s (fallback)");
     }
 
     private void stopPolling() {
@@ -125,7 +174,6 @@ public class OrderPollingService extends Service {
                 db.orderDao().insert(entity); // upsert
 
                 if (!exists && !entity.isNotified) {
-                    // New order — show notification
                     showOrderNotification(entity);
                     db.orderDao().markAsNotified(id);
                     PrefManager.getInstance(OrderPollingService.this).incrementBadge();
@@ -171,7 +219,7 @@ public class OrderPollingService extends Service {
     }
 
     private Notification buildForegroundNotification() {
-        Intent intent = new Intent(this, MainActivity.class);
+        Intent intent = new Intent(this, com.mhstore.admin.activities.MainActivity.class);
         int piFlags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             ? PendingIntent.FLAG_IMMUTABLE : 0;
         PendingIntent pi = PendingIntent.getActivity(this, 0, intent, piFlags);
