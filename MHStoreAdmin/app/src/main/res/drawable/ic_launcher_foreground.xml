@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
-    <!-- MH text icon -->
-    <path android:fillColor="#FFFFFF"
-        android:pathData="M20,30 L20,78 L32,78 L32,58 L44,78 L56,78 L44,54 L54,30 L42,30 L36,50 L32,38 L32,30 Z
-                         M62,30 L62,78 L74,78 L74,58 L86,58 L86,78 L98,78 L98,30 L86,30 L86,46 L74,46 L74,30 Z"/>
-</vector>
