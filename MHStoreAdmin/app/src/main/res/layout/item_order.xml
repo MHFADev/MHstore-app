@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardBackgroundColor="@color/bg_surface"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginTop="8dp"
+    android:foreground="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="14dp"
+        android:gravity="center_vertical">
+
+        <!-- Unread dot -->
+        <View
+            android:id="@+id/unread_dot"
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:background="@drawable/bg_unread_dot"
+            android:layout_marginEnd="10dp"
+            android:visibility="invisible"/>
+
+        <!-- Service icon circle -->
+        <LinearLayout
+            android:id="@+id/service_icon_bg"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:background="@drawable/bg_service_blue"
+            android:layout_marginEnd="12dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💻"
+                android:textSize="18sp"/>
+        </LinearLayout>
+
+        <!-- Text content -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tv_item_cust_name"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="Customer Name"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:maxLines="1"
+                    android:ellipsize="end"/>
+
+                <TextView
+                    android:id="@+id/tv_item_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Pending"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="3dp"
+                    android:background="@drawable/bg_status_pending"/>
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_item_service"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💻 Website Professional"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="2dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="4dp">
+
+                <TextView
+                    android:id="@+id/tv_item_order_id"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="#ORD-XXXXXX"
+                    android:textSize="10sp"
+                    android:fontFamily="monospace"
+                    android:textColor="@color/text_hint"/>
+
+                <TextView
+                    android:id="@+id/tv_item_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="01 Jan · 09:00"
+                    android:textSize="10sp"
+                    android:textColor="@color/text_hint"/>
+
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- WA Quick Button -->
+        <ImageButton
+            android:id="@+id/btn_item_wa"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_whatsapp"
+            android:background="@drawable/bg_wa_btn"
+            android:padding="8dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="WhatsApp"/>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>
