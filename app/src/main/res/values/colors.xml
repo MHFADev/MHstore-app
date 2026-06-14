@@ -53,7 +53,7 @@
     <color name="colorSurface">@color/bg_surface</color>
     <color name="colorBackground">@color/bg_primary</color>
     <color name="colorError">#EF4444</color>
-</resources>
 
     <!-- Launcher icon background -->
     <color name="ic_launcher_background">#2563EB</color>
+</resources>
